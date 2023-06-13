@@ -3,6 +3,8 @@ package com.ibm.app.config;
 import javax.sql.DataSource;
 
 import org.hibernate.engine.jdbc.connections.internal.DatasourceConnectionProviderImpl;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -79,6 +81,25 @@ public class UserManagementConfig extends WebSecurityConfigurerAdapter {
 	}
 	
 	/**
+	 * To resolve the issue of generating refresh_token 
+	 * There is a "local" AuthenticationManagerBuilder and a "global" AuthenticationManagerBuilder 
+	 * and we need to set it on the global version in order 
+	 * to have this information passed to these other builder contexts.
+	 * 
+	 */
+	@Autowired
+	public void setApplicationContext(ApplicationContext context) {
+	    super.setApplicationContext(context);
+	    AuthenticationManagerBuilder globalAuthBuilder = context
+	            .getBean(AuthenticationManagerBuilder.class);
+	    try {
+	        globalAuthBuilder.userDetailsService(userDetailsManager());
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }
+	}
+	
+	/**
 	 * To enable user and client authentication via database
 	 */
 	@Override
@@ -86,7 +107,8 @@ public class UserManagementConfig extends WebSecurityConfigurerAdapter {
 		auth.jdbcAuthentication()
 		.dataSource(datasource)
 		.and()
-		.authenticationProvider(clientUserAuthenticationProvider);
+		.authenticationProvider(clientUserAuthenticationProvider)
+		.userDetailsService(userDetailsManager());
 	}
 
 	@Bean
@@ -101,7 +123,7 @@ public class UserManagementConfig extends WebSecurityConfigurerAdapter {
 	}
 	
 	@Bean
-	public JdbcUserDetailsManager userDetailsManager(DataSource datasource) {
+	public JdbcUserDetailsManager userDetailsManager() {
 		return new JdbcUserDetailsManager(datasource);
 	}
 	
